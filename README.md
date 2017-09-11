@@ -16,4 +16,4 @@ In addition to Python 3 itself, BotOvh uses the following modules:
 
 ## License
 
-This code is released under a free software license and you are welcome to fork it.
+This code is released under a free software [license](LICENSE) and you are welcome to fork it.
