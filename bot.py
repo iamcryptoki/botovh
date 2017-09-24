@@ -228,5 +228,4 @@ if __name__ == '__main__':
         elif domains_file is not None:
             with open(domains_file) as f:
                 domains = f.read()
-                f.close()
             run(domains.splitlines())
