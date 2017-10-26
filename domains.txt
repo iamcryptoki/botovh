@@ -1,4 +1,4 @@
 breakingbad.com
-example.net
+example.org
 github.com
 linkinpark.com

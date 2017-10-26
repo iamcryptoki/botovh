@@ -4,16 +4,14 @@
 import configparser
 import logging
 import os
+import sys
 import ovh
-import smtplib
 
 from argparse import ArgumentParser
-from datetime import datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from twilio.rest import Client as twilio_client
 
-def run(domains):
+REGISTERED = []
+
+def run(conf, account, domains):
     for domain in domains:
         # Create a new cart and assign to current user.
         cart_id = account.create_cart()
@@ -27,17 +25,15 @@ def run(domains):
             salesorder = account.generate_salesorder(domain, cart_id)
             order_id = salesorder['orderId']
 
-            # Send SMS notification
-            if 'phone' in ntf:
-                msg = ("{0} is available. Order #{1} ({2}) has been generated."
-                       .format(domain, order_id, salesorder['prices']['withTax']['text']))
-                sms.send(domain, msg)
+            logging.info("[%s] Available domain name. Order #%s (%s) has been generated.",
+                         domain, order_id, salesorder['prices']['withTax']['text'])
 
             # Retrieve available payment means.
             payment_means = account.get_payment_means(domain, order_id)
             if not payment_means:
-                msg = "Not registered payment means available. Can't pay this order automatically."
-                error(domain, msg)
+                logging.error("[%s] Not registered payment means available. "
+                              "Can't pay this order automatically.", domain)
+                sys.exit(1)
             if len(payment_means) > 1:
                 for p in payment_means:
                     if p['paymentMean'] == conf['default']['payment']:
@@ -49,32 +45,9 @@ def run(domains):
             payment_mean_id = account.get_payment_mean_id(domain, payment_mean)[0]
             account.pay(domain, order_id, payment_mean, payment_mean_id)
 
-            # Remove purchased domain name from the list.
-            f = open(domains_file, 'w')
-            for dn in domains:
-                if dn != domain:
-                    f.write(dn+'\n')
-            f.close()
-
-def error(domain, msg):
-    """
-    Log errors to a file and send email notification.
-    """
-    msg = ("[{0}] domain={1}, message={2}"
-           .format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), domain, msg))
-    # Append the message to the log file.
-    logging.basicConfig(filename=conf['default']['logs'], level=logging.ERROR)
-    logging.error(msg)
-
-    # Send email notification.
-    if 'email' in ntf:
-        msg = email.build(domain, "Exception Notification", msg)
-        email.send(msg)
-    exit(1)
-
 class Account(object):
-    def __init__(self, conf):
-        self.client = ovh.Client(config_file=conf)
+    def __init__(self):
+        self.client = ovh.Client()
 
     def create_cart(self):
         """
@@ -98,7 +71,8 @@ class Account(object):
         try:
             return self.client.post("/order/cart/{0}/checkout".format(cart_id))
         except ovh.exceptions.APIError as e:
-            error(domain, "Unable to generate the order: %s" % str(e))
+            logging.error("[%s] Unable to generate the order: %s", domain, str(e))
+            sys.exit(1)
 
     def get_payment_means(self, domain, order_id):
         """
@@ -107,13 +81,15 @@ class Account(object):
         try:
             return self.client.get("/me/order/{0}/availableRegisteredPaymentMean".format(order_id))
         except ovh.exceptions.APIError as e:
-            error(domain, "Unable to retrieve order payment means: %s" % str(e))
+            logging.error("[%s] Unable to retrieve order payment means: %s", domain, str(e))
+            sys.exit(1)
 
     def get_payment_mean_id(self, domain, payment_mean):
         try:
             return self.client.get("/me/paymentMean/{0}".format(payment_mean))
         except ovh.exceptions.APIError as e:
-            error(domain, str(e))
+            logging.error("[%s] %s", domain, str(e))
+            sys.exit(1)
 
     def pay(self, domain, order_id, payment_mean, payment_mean_id):
         """
@@ -124,13 +100,16 @@ class Account(object):
                              .format(order_id),
                              paymentMean=payment_mean,
                              paymentMeanId=payment_mean_id)
-
-            # Send SMS notification
-            if 'phone' in ntf:
-                msg = "Payment successful. Congratulations on purchasing your new domain name %s! " % domain
-                sms.send(domain, msg)
+            logging.info("[%s] Payment successful. "
+                         "Congratulations on purchasing a new domain name!", domain)
+            REGISTERED.append(domain)
+            """
+            COMPLETED! You should receive a confirmation email from OVH
+            confirming that you are the legal registrant! :)
+            """
         except ovh.exceptions.APIError as e:
-            error(domain, "Payment of your order haven't been successful: %s" % str(e))
+            logging.error("[%s] Payment of your order haven't been successful: %s", domain, str(e))
+            sys.exit(1)
 
     def request_consumer_key(self):
         """
@@ -145,88 +124,55 @@ class Account(object):
         print("Welcome %s!" % self.client.get('/me')['firstname'])
         print("Your consumer key is '%s'" % validation['consumerKey'])
 
-class Email(object):
-    def __init__(self):
-        self.smtp = conf['smtp']
-        self.ntf = conf['notification']
+def configure_logging():
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
 
-    def build(self, domain, subject, body, email_type='plain', charset='utf-8'):
-        """
-        Create the container email message.
-        """
-        msg = MIMEMultipart()
-        msg['From'] = self.smtp['username']
-        msg['To'] = self.ntf['email']
-        msg['Subject'] = "[BotOvh][{0}] {1}".format(domain, subject)
-        msg.attach(MIMEText(body, email_type, charset))
-        msg = msg.as_string()
-        return msg
+    # Create console handler and set level to info.
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(levelname)s %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
-    def send(self, msg):
-        """
-        Send the email message using SMTP.
-        """
-        server = smtplib.SMTP(self.smtp['host'], self.smtp['port'])
-        server.ehlo()
-        server.starttls()
-        server.login(self.smtp['username'], self.smtp['password'])
-        server.sendmail(self.smtp['username'], self.ntf['email'], msg)
-        server.quit()
+    # Create log file handler and set level to error.
+    handler = logging.FileHandler(os.path.join('.', "bot.log"), 'w', encoding=None, delay='true')
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
-class Twilio(object):
-    def __init__(self):
-        self.env = conf['twilio']['environment']
-
-    def auth(self):
-        twilio = conf['twilio.%s' % self.env]
-        account_sid = twilio['account_sid']
-        auth_token = twilio['auth_token']
-        client = twilio_client(account_sid, auth_token)
-
-        account = {
-            'account_sid' : account_sid,
-            'auth_token'  : auth_token,
-            'client'      : client,
-            'sender'      : twilio['sender']
-        }
-
-        return account
-
-    def send(self, domain, body):
-        """
-        Send SMS message.
-        """
-        twilio = self.auth()
-        client = twilio['client']
-        sender = twilio['sender']
-
-        message = client.messages.create(
-            to=conf['notification']['phone'],
-            from_=sender,
-            body="BotOvh: {0}".format(body)
-        )
-
-        return message.sid
-
-if __name__ == '__main__':
+def main():
     p = ArgumentParser()
     p.add_argument('-a', '--authenticate', action='store_true', help="Request a new consumer key.")
     auth = vars(p.parse_args())['authenticate']
 
+    # Read the configuration file.
     conf = configparser.RawConfigParser()
-    conf.read('bot.conf')
-    conf_ovh = conf['default']['ovh']
-    domains_file = conf['default']['domains']
-    ntf = conf['notification']
-    email = Email()
-    sms = Twilio()
+    conf.read('ovh.conf')
+    domains_path = conf['default']['domains']
 
-    if conf_ovh is not None:
-        account = Account(conf_ovh)
-        if auth:
-            account.request_consumer_key()
-        elif domains_file is not None:
-            with open(domains_file) as f:
-                domains = f.read()
-                f.close()
-            run(domains.splitlines())
+    # Configure logging.
+    configure_logging()
+
+    if auth:
+        Account().request_consumer_key()
+    elif domains_path is not None:
+        f = open(domains_path)
+        domains = f.read().splitlines()
+        run(conf, Account(), domains)
+        f.close()
+
+    """
+    Stop tracking domain name availability 
+    after successfully completing the order process.
+    """
+    if REGISTERED:
+        f = open(domains_path, 'w')
+        for domain in domains:
+            if domain not in REGISTERED:
+                f.write(domain+'\n')
+        f.close()
+
+if __name__ == '__main__':
+    main()
