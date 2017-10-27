@@ -31,9 +31,9 @@ In addition to Python 3 itself, BotOvh uses the following modules:
 
 Default: Current folder.
 
-``$ python botovh.py -l /path/to/folder``
+``$ python botovh.py -l /path/to/directory``
 
-``$ python botovh.py --log /path/to/folder``
+``$ python botovh.py --log /path/to/directory``
 
 **Request a new OVH consumer key:**
 
