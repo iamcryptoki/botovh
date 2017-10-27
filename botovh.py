@@ -1,5 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+Tiny bot for registering specific domain names
+when they become available for registration.
+
+Usage:
+    botovh.py [DOMAINS ...] [--file=f] [--help] [--key] [--log=l] [--payment=p] [--version]
+
+Options:
+    -f --file=f             Specify a file containing a list of domain names.
+    -h --help               Show this message.
+    -k --key                Request a new OVH consumer key.
+    -l --log=l              Specify the location where you want to store the log file. [default: .]
+    -p --payment=p          Specify your preferred payment method: 
+                            bankAccount, creditCard, fidelityAccount, ovhAccount or paypal.
+    -v --version            Show version.
+"""
 
 import configparser
 import logging
@@ -7,11 +23,13 @@ import os
 import sys
 import ovh
 
-from argparse import ArgumentParser
+from docopt import docopt
+
+__version__ = '0.1.1'
 
 REGISTERED = []
 
-def run(conf, account, domains):
+def run(account, domains, payment_mean):
     for domain in domains:
         # Create a new cart and assign to current user.
         cart_id = account.create_cart()
@@ -34,11 +52,7 @@ def run(conf, account, domains):
                 logging.error("[%s] Not registered payment means available. "
                               "Can't pay this order automatically.", domain)
                 sys.exit(1)
-            if len(payment_means) > 1:
-                for p in payment_means:
-                    if p['paymentMean'] == conf['default']['payment']:
-                        payment_mean = p['paymentMean']
-            if payment_mean is None:
+            if payment_mean is None or payment_mean not in payment_means:
                 payment_mean = payment_means[0]['paymentMean']
 
             # Pay with an already registered payment mean.
@@ -124,7 +138,7 @@ class Account(object):
         print("Welcome %s!" % self.client.get('/me')['firstname'])
         print("Your consumer key is '%s'" % validation['consumerKey'])
 
-def configure_logging():
+def configure_logging(path):
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
@@ -136,43 +150,38 @@ def configure_logging():
     logger.addHandler(handler)
 
     # Create log file handler and set level to error.
-    handler = logging.FileHandler(os.path.join('.', "bot.log"), 'w', encoding=None, delay='true')
+    handler = logging.FileHandler(os.path.join(path, 'botovh.log'), 'w', encoding=None, delay='true')
     handler.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
 def main():
-    p = ArgumentParser()
-    p.add_argument('-a', '--authenticate', action='store_true', help="Request a new consumer key.")
-    auth = vars(p.parse_args())['authenticate']
+    args = docopt(__doc__, version=__version__)
+
+    log = args['--log']
+    if not os.path.exists(log):
+        os.makedirs(log)
+    configure_logging(log)
 
     # Read the configuration file.
     conf = configparser.RawConfigParser()
     conf.read('ovh.conf')
-    domains_path = conf['default']['domains']
 
-    # Configure logging.
-    configure_logging()
-
-    if auth:
+    if args['--key']:
         Account().request_consumer_key()
-    elif domains_path is not None:
-        f = open(domains_path)
-        domains = f.read().splitlines()
-        run(conf, Account(), domains)
-        f.close()
+        sys.exit(0)
+    elif args['DOMAINS']:
+        domains = args['DOMAINS']
+    elif args['--file'] is not None:
+        try:
+            with open(args['--file']) as f:
+                domains = f.read().splitlines()
+        except FileNotFoundError:
+            logging.error("File not found. Please input the path of an existing file.")
+            sys.exit(1)
 
-    """
-    Stop tracking domain name availability 
-    after successfully completing the order process.
-    """
-    if REGISTERED:
-        f = open(domains_path, 'w')
-        for domain in domains:
-            if domain not in REGISTERED:
-                f.write(domain+'\n')
-        f.close()
+    run(Account(), domains, args['--payment'])
 
 if __name__ == '__main__':
     main()
