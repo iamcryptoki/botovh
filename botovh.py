@@ -27,8 +27,6 @@ from docopt import docopt
 
 __version__ = '0.1.1'
 
-REGISTERED = []
-
 def run(account, domains, payment_mean):
     for domain in domains:
         # Create a new cart and assign to current user.
@@ -116,7 +114,6 @@ class Account(object):
                              paymentMeanId=payment_mean_id)
             logging.info("[%s] Payment successful. "
                          "Congratulations on purchasing a new domain name!", domain)
-            REGISTERED.append(domain)
             """
             COMPLETED! You should receive a confirmation email from OVH
             confirming that you are the legal registrant! :)
