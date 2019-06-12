@@ -50,7 +50,7 @@ CONSUMER_KEY=<YOUR__CONSUMER_KEY>
 
 #### Email notification
 
-```init
+```ini
 [SMTP]
 ; Send email notification.
 HOST=<SMTP_SERVER_ADDRESS>
