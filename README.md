@@ -27,7 +27,7 @@ To interact with the OVH APIs, BotOVH needs to identify itself using an applicat
 
 Once created, you will obtain an application key and an application secret.
 
-### 3. Configure BotOvh
+### 3. Configure BotOVH
 
 Create an ``botovh.conf`` configuration file at :
 

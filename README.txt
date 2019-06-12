@@ -29,7 +29,7 @@ To interact with the OVH APIs, BotOVH needs to identify itself using an applicat
 
 Once created, you will obtain an application key and an application secret.
 
-3. Configure BotOvh
+3. Configure BotOVH
 
 Create an ``botovh.conf`` configuration file at :
 
@@ -42,16 +42,19 @@ Here is how the configuration file looks like :
 OVH API
 -------
 
+```ini
 [OVH]
 ENDPOINT=ovh-eu
 APPLICATION_KEY=<YOUR_APPLICATION_KEY>
 APPLICATION_SECRET=<YOUR_APPLICATION_SECRET>
 ; Use 'botovh --key' to request your OVH consumer key.
 CONSUMER_KEY=<YOUR__CONSUMER_KEY>
+```
 
 Email notification
 ------------------
 
+```ini
 [SMTP]
 ; Send email notification.
 HOST=<SMTP_SERVER_ADDRESS>
@@ -60,6 +63,7 @@ USER=<YOUR_SMTP_USER>
 PASSWORD=<YOUR_SMTP_PASSWORD>
 SEND_FROM=<SEND_EMAIL_FROM>
 SEND_TO=<SEND_EMAIL_TO>
+```
 
 -----
 Usage

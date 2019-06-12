@@ -13,7 +13,7 @@
  ==========================================
 
 Usage:
-    botovh.py [DOMAINS ...] [--file=f] [--help] [--key] [--noemail] [--payment=p] [--quiet] [--version]
+    botovh [DOMAINS ...] [--file=f] [--help] [--key] [--noemail] [--payment=p] [--quiet] [--version]
 
 Options:
     -f --file=f             Specify a file containing a list of domain names.
