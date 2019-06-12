@@ -1,57 +1,101 @@
-# BotOvh
+# BotOVH
 
-BotOvh is a tiny bot I wrote for my personal needs. It checks whether a specific domain name is available for registration, and then automatically registers the domain using the [OVH API](https://github.com/ovh/python-ovh).
+BotOVH is a tiny bot I wrote for my personnal needs.
+
+Is your domain name already taken? Tell BotOVH to grab it for you when it becomes available for registration.
 
 ## Requirements
 
 - [**OVH Account**](https://www.ovh.com/)
-- **Python 3**
+- [**OVH API application**](https://docs.ovh.com/gb/en/customer/first-steps-with-ovh-api/)
+- **Python 3.6+**
 
-In addition to Python 3 itself, BotOvh uses the following modules:
+## Installation
 
-- **ovh**: OVH API wrapper ([repo](https://github.com/ovh/python-ovh))
-  - Installation: `pip install ovh`
+### 1. Install BotOVH using pip
 
-- **docopt**: Command-line arguments parser ([repo](https://github.com/docopt/docopt))
-  - Installation: `pip install docopt`
+``pip install botovh``
+
+BotOVH automatically installs the following dependencies:
+
+- [docopt](https://github.com/docopt/docopt)
+- [python-ovh](https://github.com/ovh/python-ovh)
+
+### 2. Create an OVH API application
+
+To interact with the OVH APIs, BotOVH needs to identify itself using an application_key and an application_secret. To get them, you need to [register your application](https://docs.ovh.com/gb/en/customer/first-steps-with-ovh-api/).
+
+Once created, you will obtain an application key and an application secret.
+
+### 3. Configure BotOvh
+
+Create an ``botovh.conf`` configuration file at :
+
+- Windows : ``C:\Users\<YOUR_WINDOWS_USERNAME>\.botovh\botovh.conf``
+
+- Linux / Mac : ``/etc/botovh.conf``
+
+Here is how the configuration file looks like :
+
+#### OVH API
+
+.. code:: ini
+    [OVH]
+    ENDPOINT=ovh-eu
+    APPLICATION_KEY=<YOUR_APPLICATION_KEY>
+    APPLICATION_SECRET=<YOUR_APPLICATION_SECRET>
+    ; Use 'botovh --key' to request your OVH consumer key.
+    CONSUMER_KEY=<YOUR__CONSUMER_KEY>
+
+#### Email notification
+
+.. code:: ini
+    [SMTP]
+    ; Send email notification.
+    HOST=<SMTP_SERVER_ADDRESS>
+    PORT=465
+    USER=<YOUR_SMTP_USER>
+    PASSWORD=<YOUR_SMTP_PASSWORD>
+    SEND_FROM=<SEND_EMAIL_FROM>
+    SEND_TO=<SEND_EMAIL_TO>
 
 ## Usage
 
-**Basic usage:**
-
-``$ python botovh.py example.com fakedomain.org``
-
-**Specify a file containing the domain names you want:**
-
-``$ python botovh.py -f /path/to/file.txt``
-
-``$ python botovh.py --file /path/to/file.txt``
-
-**Specify the location where you want to store the log file:**
-
-Default: Current folder.
-
-``$ python botovh.py -l /path/to/directory``
-
-``$ python botovh.py --log /path/to/directory``
-
 **Request a new OVH consumer key:**
 
-``$ python botovh.py -k``
+``$ botovh -k``
 
-``$ python botovh.py --key``
+``$ botovh --key``
+
+**Basic usage:**
+
+``$ botovh example.com fakedomain.org``
+
+**Specify a file containing the domain names you want to check:**
+
+``$ botovh -f /path/to/file.txt``
+
+``$ botovh --file /path/to/file.txt``
 
 **Specify your preferred payment method:**
 
 Payment methods: bankAccount, creditCard, fidelityAccount, ovhAccount or paypal.
 
-``$ python botovh.py -p paypal``
+``$ botovh -p paypal``
 
-``$ python botovh.py --payment creditCard``
+``$ botovh --payment creditCard``
 
-## Automate BotOvh
+**Disable console logging using the ``--quiet`` argument:**
 
-You can automate BotOvh to run daily using [cron jobs](https://help.ubuntu.com/community/CronHowto) or task scheduler depending on your system.
+``$ botovh example.com fakedomain.org --quiet``
+
+**Disable email notification using the ``--noemail`` argument:**
+
+``$ botovh example.com fakedomain.org --noemail``
+
+## Automate BotOVH
+
+You can automate BotOVH to run daily using [cron jobs](https://help.ubuntu.com/community/CronHowto) or task scheduler depending on your system.
 
 ## License
 
